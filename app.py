@@ -38,20 +38,32 @@ MODEL_FILES = {
 st.sidebar.header("Evaluation settings")
 model_name = st.sidebar.selectbox("Choose a model", list(MODEL_FILES.keys()))
 
-default_path = ROOT / "test_data.csv"
 uploaded_file = st.file_uploader("Upload test data (CSV)", type=["csv"])
 
-if uploaded_file is not None:
-    try:
-        test_df = pd.read_csv(uploaded_file)
-    except Exception as exc:
-        st.error(f"Could not read CSV: {exc}")
-        st.stop()
-elif default_path.exists():
-    test_df = pd.read_csv(default_path)
-    st.info("Showing the included held-out test_data.csv. Upload another CSV to evaluate it instead.")
-else:
+st.info("No test dataset is loaded automatically. Upload a CSV and click Generate Results.")
+
+if uploaded_file is None:
     st.warning("Upload a CSV to begin.")
+    st.stop()
+
+# Reset evaluation if the user selects a different CSV.
+upload_signature = (uploaded_file.name, uploaded_file.size)
+if st.session_state.get("upload_signature") != upload_signature:
+    st.session_state["upload_signature"] = upload_signature
+    st.session_state["run_evaluation"] = False
+
+try:
+    test_df = pd.read_csv(uploaded_file)
+except Exception as exc:
+    st.error(f"Could not read CSV: {exc}")
+    st.stop()
+
+st.success(f"CSV uploaded: {len(test_df)} rows.")
+if st.button("Generate Results", type="primary"):
+    st.session_state["run_evaluation"] = True
+
+if not st.session_state.get("run_evaluation", False):
+    st.caption("Click Generate Results to evaluate the selected model.")
     st.stop()
 
 missing = [col for col in FEATURES + [TARGET] if col not in test_df.columns]
